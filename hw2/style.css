@@ -1,0 +1,31 @@
+span {
+  font-size: 14px; 
+}
+
+.axis-label {
+  fill: black; 
+  font: sans-serif; 
+  font-size: 12px; 
+}
+
+.cell {
+  font: sans-serif; 
+  font-size: 12px;
+}
+
+.legend .axis-label {
+  font-size: 14px; 
+}
+
+div.tooltip {
+  position: absolute;
+  text-align: center;
+  width: 60px;
+  height: 28px;
+  padding: 2px;
+  font: 12px sans-serif;
+  background: lightsteelblue;
+  border: 0px;
+  border-radius: 8px;
+  pointer-events: none;
+}

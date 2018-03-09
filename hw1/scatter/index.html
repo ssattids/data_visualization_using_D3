@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width">
+		<script src="https://d3js.org/d3.v4.min.js"></script>
+		<title>Scatter Plot</title>
+		<title>My Page</title>
+    	<style>
+    		h1 {
+				font-family: calibri;
+			}
+
+			h2{
+				font-family: calibri;
+			}
+
+			p {
+				font-size: 16px;
+				font-family: calibri;
+			}
+
+			body {
+			    background-color: lightblue;
+			}
+
+			a {
+			    color: blue;
+			    text-decoration: italic;
+			}
+
+			td {
+			    height: 50px;
+			    border: 1px dashed blue;
+			    font-family: calibri;
+			}
+			.tick text {
+		        font-size: 10pt;
+		        font-family: sans-serif;
+		    }
+			.axis-label{
+				fill:black;
+				font-size: 2em;
+			}
+    	</style>>
+		<body>
+			<h1>Scatterplot to investigate different diamonds cuts' effects on price</h1>
+			
+			<h2>Salar Satti</h2>
+			
+			<h2>Learning Aims and about me</h2>
+			<p>Interesting visualizations have always interested me. I want to be creative by building interesting visualization while also learning how to build visualizations with clarity and interesting insights. Additionally, I have not had that much exposure to web technologies, despite the web being such a ubiquitos technology, I aim to plug some knowledge gaps using this course. Finally, I am very excited about virtual reality technology and the prospect of using that for data visualization. I think this class will give me a very good foundation to start exploring that frontier.</p>
+			<p>I have very little web programming experience. My experience is limited to completing the HTML and CSS courses on codeacademy and putting a up a simple webpage using Amazon Web Services.</p>
+			<p>I am a Computer Science Graduate student. My undergraduate degree was in Business Economics but I switched to Computer Science in the last 3 years. I think it was the best decision I made because Computer Science is great. It is a frontier where humans keep breaking new ground which is very exciting to me. My other areas of interest (apart from data visualization) are Machine Learning, Artificial Intelligence, and NLP.</p>
+			
+			<h2>Data used</h2>
+			<p>The dataset can be found on <a href="https://www.kaggle.com/shivam2503/diamonds">Kaggle</a>. This is a classical dataset containing multiple aspects of around 54,000 diamonds. The following information about the data has been copied from source:
+			<table>
+				<thead>
+					<th colspan="2">Data Contents</th>
+				</thead>
+				<tbody>
+					<tr>
+						<td>price</td>
+						<td>price in US dollars (\$326--\$18,823)</td>
+					</tr>
+					<tr>
+						<td>carat</td>
+						<td>weight of the diamond (0.2--5.01)</td>
+					</tr>
+					<tr>
+						<td>cut</td>
+						<td>quality of the cut (Fair, Good, Very Good, Premium, Ideal)</td>
+					</tr>
+					<tr>
+						<td>color</td>
+						<td>diamond colour, from J (worst) to D (best)</td>
+					</tr>
+					<tr>
+						<td>clarity</td>
+						<td>a measurement of how clear the diamond is (I1 (worst), SI2, SI1, VS2, VS1, VVS2, VVS1, IF (best))</td>
+					</tr>
+					<tr>
+						<td>x</td>
+						<td>length in mm (0--10.74)</td>
+					</tr>
+					<tr>
+						<td>y</td>
+						<td>width in mm (0--58.9)</td>
+					</tr>
+					<tr>
+						<td>z</td>
+						<td>depth in mm (0--31.8)</td>
+					</tr>
+					<tr>
+						<td>depth</td>
+						<td>total depth percentage = z / mean(x, y) = 2 * z / (x + y) (43--79)</td>
+					</tr>
+					<tr>
+						<td>table</td>
+						<td>width of top of diamond relative to widest point (43--95)</td>
+					</tr>
+				</tbody>
+			</table>
+
+
+			</p>
+
+		</body>
+		
+	</head>
+	<body>
+		<svg width="960" height="500"></svg>
+		<script>
+			const xValue = d => d.carat;
+			const xLabel = 'Carat (1 Carat = 0.2 Grams)';
+			const yValue = d => d.price;
+			const yLabel = 'Price (in US Dollars)';
+			const colorValue = d => d.cut;
+			const colorLabel = 'Cut';
+			//set the margin values
+			const margin = {
+				left:80,
+				right: 20,
+				top: 20,
+				bottom: 60,
+			};
+
+			const svg = d3.select('svg');
+			const width = svg.attr('width');
+			const height = svg.attr('height');
+			//variables for the margin
+			const innerWidth = width - margin.left - margin.right;
+      		const innerHeight = height - margin.top - margin.bottom;
+
+			const g = svg.append('g')
+          		.attr('transform', `translate(${margin.left}, ${margin.top})`);
+          	const xAxisG = g.append('g')
+          		.attr('transform', `translate(0, ${innerHeight})`);
+      		const yAxisG = g.append('g');
+
+      		//set the x-axis by appending to x-axis group
+      		xAxisG.append('text')
+      			.attr('class', 'axis-label')
+      			.attr('x', innerWidth / 2)
+      			.attr('y', 50)
+      			.text(xLabel);
+
+      		//set the y-axis label by appending to y-axis group
+      		yAxisG.append('text')
+      			.attr('class', 'axis-label')
+      			.attr('x', (-innerHeight / 2) + 110 )
+      			.attr('y', -60)
+      			.attr('transform', 'rotate(-90)') //rotate by -90
+      			.text(yLabel);
+
+      		//set the x an y scales
+			const xScale = d3.scaleLinear();
+			const yScale = d3.scaleLinear();
+			const colorScale = d3.scaleOrdinal() //color for thr points
+				.range(d3.schemeCategory10);
+
+			//set the axis labels
+			const xAxis = d3.axisBottom().scale(xScale);
+      		const yAxis = d3.axisLeft().scale(yScale);
+
+			//a function to convert string values to numbers in the array of objects 
+			const row = d => {
+				d.carat = +d.carat;
+				d.price = +d.price;
+				return d;
+			};
+
+
+			//open diamonds.csv as a data file and plot the data as a scatter plot
+			d3.csv('diamonds.csv', row, data => {
+				xScale
+					.domain(d3.extent(data, xValue))
+					.range([0, innerWidth]);
+
+				yScale
+					.domain(d3.extent(data, yValue))
+					.range([innerHeight, 0]);
+
+				g.selectAll('circle').data(data)
+					.enter().append('circle')
+						.attr('cx', d => xScale(xValue(d)))
+						.attr('cy', d => yScale(yValue(d)))
+						.attr('fill', d => colorScale(colorValue(d)))
+						.attr('r', 2);
+				xAxisG.call(xAxis);
+        		yAxisG.call(yAxis);
+			});
+		</script>
+	</body>
+	<body>
+		<h2>Prelimniary analysis</h2>
+		<p>The colors represent different types of cuts, ranging from 'Fair' to 'Ideal'. However the massive spread, and no correlation between the colors show that the cut should not be the primary factor in determining the price you pay for a diamond.</p>
+	</body>
+</html>

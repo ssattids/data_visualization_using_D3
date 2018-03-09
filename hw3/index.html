@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <script src="//d3js.org/d3.v4.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/2.25.5/d3-legend.min.js"></script>
+  <style>
+    body {
+      margin:0;position:fixed;top:0;right:0;bottom:0;left:0; 
+    }
+
+    /*Force the tool tip div to come to the front*/
+    div {
+      z-index: 1;
+      position: absolute;
+    }
+
+    .legend-text {
+      font-family: Arial;
+    }
+
+    .cell {
+      font-family: Arial;
+    }
+
+    .button {
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      padding: 15px 32px;
+      text-align: center;
+      text-decoration: none;
+      display: block;
+      font-size: 16px;
+      margin: 4px 2px;
+      cursor: pointer;
+    }
+
+    td {
+      height: 50px;
+      border: 1px dashed blue;
+    }
+    table {
+      border: 1px solid black;
+    }
+
+  </style>
+</head>
+
+<body>
+  <!--Reset button HTML-->
+      <table>
+        <tr>
+          <td>
+            <svg id="svg1"> </svg>
+          </td>
+          <td align="center" style="vertical-align: center">
+            <table>
+              <tr>
+                <td align="center" style="vertical-align: bottom">
+                  <input 
+                  style="margin-top: 50%" 
+                  type="button" 
+                  class="button" 
+                  value="Reset"
+                  onclick="reset()"
+                  >
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <svg id="svg2"> </svg> 
+                </td>
+              <tr>
+            </table>
+            
+
+            
+          </td>
+        </tr>
+      </table>
+
+
+  <script>
+    var width = 700;
+    var height = 700;
+    
+    //svg for the map
+    var svg = d3.select("#svg1")
+    svg
+      .attr('width', width)
+      .attr('height', height)
+      .call(d3.zoom()
+        .scaleExtent([1, 8])
+        .on("zoom", zoom));
+    
+    //svg for the legend
+    var svg2 = d3.select("#svg2")
+    svg2
+      .attr('width', width/2)
+      .attr('height', height)
+
+    reset_button = svg2.append("svg")
+    reset_button
+      .attr("fill", "red")
+      .on('click', function() {
+      console.log('I was clicked');
+      });
+
+    var g = svg.append("g");
+
+    //create the map
+    var projection = d3.geoMercator()
+      .scale(100)
+      //.scale(100)
+      .translate([width / 2, height / 2])
+
+    //create the lines on the map
+    var path = d3.geoPath()
+      .projection(projection);
+    
+    //create a div that will be used for the tooltip
+    var div = d3.select("body").append("div")
+      .attr("class", "tooltip")
+      .style("opacity", 1);
+
+    //create a color scale for the legened
+    var colorScale = d3.scaleOrdinal()
+    .domain(['Intraplate', 'Rift Zone', 'Subduction Zone', 'Unknown'])
+    .range(['blue', 'red', 'green', 'pink']);
+
+    
+
+    d3.csv("volcanoes.csv", function(data) {
+      //convert each relevant item into a number
+      data.forEach(function(d) {
+        d.Latitude = +d.Latitude;
+        d.Longitude = +d.Longitude;
+        d.Elevation_Metres = +d.Elevation_Metres;
+        d.coordinates = [d.Longitude, d.Latitude]
+      });
+
+      //create the legened object
+      var colorLegend = d3.legendColor() 
+      .scale(colorScale)
+      .shape('circle')
+      .on("cellclick", function(type) {
+        console.log(type)
+        console.log(this)
+        // dim all the icons in legend
+        d3.selectAll(".cell") //select all the cell class HTML objects
+          .style("opacity", 0.1); 
+        // undim the selected one 
+        d3.select(this) //'this' in this case is the object you are clicking
+          .style("opacity", 1); 
+        // dim all the data circles 
+        d3.selectAll(".data-circles")
+          .style("opacity", 0) 
+          // filter out the selected ones 
+          .filter(function(d) {
+            return d["Tectonic_Plate_Volcano_Type"] == type; 
+          })
+          .style("opacity", 1) 
+      });
+
+      svg2.append('g')
+        .attr('class', 'legend')
+        .attr('id', 'colorLegend')
+        .attr('transform', `translate(${70},${70})`)
+        .call(colorLegend) 
+      .append('text') 
+        .attr('class', 'legend-text')
+        .attr('y', -20)
+        .text('Type of Plates where volcanoes form');
+
+
+      var url = "http://enjalot.github.io/wwsd/data/world/world-110m.geojson";
+      d3.json(url, function(err, geojson) {
+        g.append("path")
+          .attr("d", path(geojson));
+        g.selectAll("circle")
+          .data(data).enter()
+          .append("circle")
+          .attr("class", "data-circles")
+          .attr("cx", function (d) { return projection(d.coordinates)[0]; })
+          .attr("cy", function (d) { return projection(d.coordinates)[1]; })
+          .attr("r", "3px")
+          .attr('fill', d => colorScale(d.Tectonic_Plate_Volcano_Type)) 
+          //tooltip - actions when hovering over
+          .on("mouseover", function(d) {
+            div.transition()
+              .duration(200)
+              .style("opacity", 0.9)
+              .style('width', 200 + 'px')
+              .style('height', 60 + 'px')
+              .style('background-color', 'white')
+
+            div.html(d.Volcano_Name + "<br/>" + d.Country + "<br/>" + d.Elevation_Metres+" metres")
+              .style("left", d => {
+                return (d3.event.pageX+28) + "px"
+              })
+              .style("top", (d3.event.pageY -28) + "px");
+          })
+          //tooltip - actions when hovering out
+          .on("mouseout", function(d) {
+            div.transition()
+            .duration(500)
+            .style("opacity", 0);
+          });
+      });
+    });
+
+    function zoom() {
+      g.attr("transform", d3.event.transform);
+      g.selectAll("circle")
+        .attr("r", 4/d3.event.transform.k+"px");
+    }
+
+    //function to reset all the colorizations, called from HTML
+    function reset() {
+      d3.select("#colorLegend").selectAll(".cell") //select all the cell class HTML objects
+        .style("opacity", 1);
+      d3.select("#sizeLegend").selectAll(".cell") //select all the cell class HTML objects
+        .style("opacity", 1);
+      d3.selectAll('.data-circles')
+        .style("opacity", 1);
+    }
+    
+  </script>
+</body>
