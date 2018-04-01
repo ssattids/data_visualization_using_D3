@@ -2,11 +2,9 @@
 <head>
   <meta charset="utf-8">
   <script src="//d3js.org/d3.v4.js"></script>
+  <!--Library call for legend-->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/2.25.5/d3-legend.min.js"></script>
   <style>
-    body {
-      margin:0;position:fixed;top:0;right:0;bottom:0;left:0; 
-    }
 
     /*Force the tool tip div to come to the front*/
     div {
@@ -15,11 +13,11 @@
     }
 
     .legend-text {
-      font-family: Arial;
+      font-family: "Trebuchet MS";
     }
 
     .cell {
-      font-family: Arial;
+      font-family: "Trebuchet MS";
     }
 
     .button {
@@ -35,54 +33,80 @@
       cursor: pointer;
     }
 
+
+    /*Table border for debugging*/
+    /*
     td {
-      height: 50px;
       border: 1px dashed blue;
     }
     table {
       border: 1px solid black;
     }
 
+    input {
+      font-family: "Trebuchet MS";
+    }*/
+
   </style>
 </head>
 
 <body>
-  <!--Reset button HTML-->
+	<h1><center>Volcanoes Visualized</center></h1>
+	<h2>Salar Satti</h2>
+
+	<h3>Question 1: Data</h3>
+	<p>The dataset is from the Global Volcanism Program database which contain eruptions from approximately the last 10,000 years. It has 1443 volcanoes.</p>
+
+	<p>
+		The dataset contains:
+		<ul>
+		  <li>Volcano Name: name given to volcano</li>
+		  <li>Country: country where volcano is located</li>
+		  <li>Primary Volcano type: type of volcano</li>
+		  <li>Activity Evidence: if eruption has been observed, if eruption has been approximately dated, if there is evidence of eruption but the date is known</li>
+		  <li>Last known eruption: approximately when the eruption happened, a year or unknown</li>
+		  <li>Region: general region</li>
+		  <li>Subregion: more specific region</li>
+		  <li>Latitude: latitude coordinates</li>
+		  <li>Longitude: longitude coordinates</li>
+		  <li>Elevation: height in metres of the volcano</li>
+		  <li>Dominant Rock Type: primary rock type volcano is made up of</li>
+		  <li>Tectonic Setting: whether the plates are separating creating new crust, or if one plate is being destroyed, or if two plates are rubbing against each other</li>
+		</ul>
+	</p>
+
+	<p>
+		We could use the data in multiple ways, some of the ways include:
+		<ul>
+			<li>Plot the volcanoes on a world map based on longitude and latitude</li>
+			<li>Shade the countries to represent the concentration of volcanoes in a country, region, or subregion</li>
+			<li>Plot the volcanoes on a world map based on longitude and latitude and date of last eruption to see active regions during time</li>
+		</ul>
+	</p>
+	
+	<h3>Question 2: Projection</h3>
+	<p>I used the longitude and latitude coordinates to plot the volcanoes on a world map. To do this I utilized the d3.geoMercator() function as the projection function.</p>
+  	<!--Visualization, Reset button HTML, and Legend-->
       <table>
         <tr>
           <td>
             <svg id="svg1"> </svg>
           </td>
           <td align="center" style="vertical-align: center">
-            <table>
-              <tr>
-                <td align="center" style="vertical-align: bottom">
                   <input 
-                  style="margin-top: 50%" 
                   type="button" 
                   class="button" 
                   value="Reset"
                   onclick="reset()"
                   >
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <svg id="svg2"> </svg> 
-                </td>
-              <tr>
-            </table>
-            
-
-            
+                <svg id="svg2"> </svg> 
           </td>
         </tr>
       </table>
 
-
   <script>
-    var width = 700;
-    var height = 700;
+    var width = 1000;
+    var height = 1000;
     
     //svg for the map
     var svg = d3.select("#svg1")
@@ -96,8 +120,8 @@
     //svg for the legend
     var svg2 = d3.select("#svg2")
     svg2
-      .attr('width', width/2)
-      .attr('height', height)
+      .attr('width', 300)
+      .attr('height', 300)
 
     reset_button = svg2.append("svg")
     reset_button
@@ -110,7 +134,7 @@
 
     //create the map
     var projection = d3.geoMercator()
-      .scale(100)
+      .scale(+width/600*100)
       //.scale(100)
       .translate([width / 2, height / 2])
 
@@ -172,8 +196,8 @@
         .attr('y', -20)
         .text('Type of Plates where volcanoes form');
 
-
       var url = "http://enjalot.github.io/wwsd/data/world/world-110m.geojson";
+      //open the geojson and draw it
       d3.json(url, function(err, geojson) {
         g.append("path")
           .attr("d", path(geojson));
@@ -209,6 +233,7 @@
       });
     });
 
+    //zoom function to zoom and into the g element
     function zoom() {
       g.attr("transform", d3.event.transform);
       g.selectAll("circle")
