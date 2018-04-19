@@ -129,10 +129,7 @@ var svg = d3.select("#vis1svg"),
     width = +svg.attr("width"),
     height = +svg.attr("height");
 
-//call the zoom function on the svg
-svg.call(d3.zoom()
-    .scaleExtent([0.25,8])
-    .on("zoom", zoom));
+
 
 d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
     d.release_date = parseTime(d.release_date);
@@ -149,7 +146,7 @@ d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
   //get an array of all the movie title for the drop down
   allTitles = getTitles(data);
   //sort the movie titles
-  allTitles=allTitles.sort(function(a, b){
+  allTitles.sort(function(a, b){
     if(a.text < b.text) return -1;
     if(a.text > b.text) return 1;
     return 0;
@@ -267,28 +264,43 @@ d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
   var graph = {"nodes": allNodes, "links": allLinks}
   console.log(graph)
 
-  var simulation = d3.forceSimulation()
-      .force("link", d3.forceLink().id(function(d) { return d.id; }))
-      .force("charge", d3.forceManyBody())
-      .force("center", d3.forceCenter(width / 2, height / 2));
+  var simulation;
+  var link
+  var node
+  createForceGraph(graph, selectedMovie)
 
-  createForceGraph(graph)
-
-  function createForceGraph(graph) {
+  function createForceGraph(graph, value) {
 
     svg.selectAll("*").remove();
 
     //draw everything on the g so we can zoom into the svg
     g = svg.append("g");
 
-    var link = g.append("g")
+    //get all the movies that have at least 2 genres in common with selected movie
+  genreCommonData = getGenreCommonMovies(value, data, numSimGenNodes);
+  
+  //create all the nodes
+  allNodes = createNodes(genreCommonData);
+
+  //create all the links
+  allLinks = createLinks(genreCommonData, numSimGenLinks);
+  
+
+  graph = {"nodes": allNodes, "links": allLinks}
+
+    simulation = d3.forceSimulation()
+      .force("link", d3.forceLink().id(function(d) { return d.id; }))
+      .force("charge", d3.forceManyBody())
+      .force("center", d3.forceCenter(width / 2, height / 2));
+
+    link = g.append("g")
       .attr("class", "links")
     .selectAll("line")
     .data(graph.links)
     .enter().append("line")
       .attr("stroke-width", function(d) { return Math.sqrt(d.value); });
 
-    var node = g.append("g")
+    node = g.append("g")
         .attr("class", "nodes")
       .selectAll("circle")
       .data(graph.nodes)
@@ -305,11 +317,15 @@ d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
 
     simulation
         .nodes(graph.nodes)
-        .on("tick", ticked(link, node));
+        .on("tick", ticked);
 
     simulation.force("link")
         .links(graph.links);
 
+      //call the zoom function on the svg
+    svg.call(d3.zoom()
+      .scaleExtent([0.25,8])
+      .on("zoom", zoom));
 
     function zoom() {
       g.attr("transform", d3.event.transform);
@@ -319,7 +335,7 @@ d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
   } 
 
 
-  function ticked(link, node) {
+  function ticked() {
     link
         .attr("x1", function(d) { return d.source.x; })
         .attr("y1", function(d) { return d.source.y; })
@@ -351,22 +367,7 @@ d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
   
   function yChange() {
   var value = this.value;
-  console.log(value)
-
-  //get all the movies that have at least 2 genres in common with selected movie
-  genreCommonData = getGenreCommonMovies(value, data, numSimGenNodes);
-  
-  //create all the nodes
-  allNodes = createNodes(genreCommonData);
-
-  //create all the links
-  allLinks = createLinks(genreCommonData, numSimGenLinks);
-  
-
-  graph = {"nodes": allNodes, "links": allLinks}
-  
-  createForceGraph(graph)
-
+  createForceGraph(graph, value)
   }
 
 });
