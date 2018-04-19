@@ -571,7 +571,7 @@
 		{"id": "Nerve", "group": 1}
 	],
 	"links": [
-		{"source": "The Silence of the Lambs", "target": "The Godfather: Part III", "value": 3},
+		{"source": "The Silence of the Lambs", "target": "The Godfather: Part III", "value": 500},
 		{"source": "Star Trek VI: The Undiscovered Country", "target": "Terminator 2: Judgment Day", "value": 3},
 		{"source": "Lethal Weapon 3", "target": "Star Trek VI: The Undiscovered Country", "value": 3},
 		{"source": "Patriot Games", "target": "The Godfather: Part III", "value": 3},

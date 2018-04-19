@@ -1,66 +1,325 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
-<style>
+<head>
+  <meta charset="utf-8">
+  <script src="https://d3js.org/d3.v4.min.js"></script>
 
-.links line {
-  stroke: #999;
-  stroke-opacity: 0.6;
-}
+  <style>
+    span {
+      font-size: 14px;
+      font-family: monospace;
+    }
+    text {
+      font-size: 14px;
+      font-family: monospace;
+    }
+    table, th, td {
+      border: 1px solid black;
+    }
+    /*styled-select blue semi-square*/
+    select{
+      /*background: url(http://i62.tinypic.com/15xvbd5.png) no-repeat 96% 0;*/
+      height: 29px;
+      overflow: hidden;
+      width: 240px;
+      background-color: #000;
+      -webkit-border-radius: 5px;
+      -moz-border-radius: 5px;
+      border-radius: 5px;
+      color: white;
+      font-family: monospace;
+    }
 
-.nodes circle {
-  stroke: #fff;
-  stroke-width: 1.5px;
-}
+    p , h1, h2, h3, li{
+      font-family: Arial;
+    }
 
-</style>
+    .instruct {
+      font-family: monospace; 
+      font-size: 12px;
+    }
+
+    div {
+      z-index: 1;
+      position: absolute;
+      font-family: Arial;
+    }
+
+  .links line {
+    stroke: #999;
+    stroke-opacity: 0.6;
+  }
+
+  .nodes circle {
+    stroke: #fff;
+    stroke-width: 1.5px;
+  }
+
+  </style>
+</head> 
+<body>
+  <h1><center>Movies visualized</center></h1>
+  <h2>By Salar Satti</h2>
+
+  <h3>Question 1: Data</h3>
+  <p>The dataset is from <a href="https://www.kaggle.com/rounakbanik/the-movies-dataset">kaggle</a>. Total rows are 2417 (Some rows were removed that had missing values)</p>
+  <p>
+    The dataset contains:
+    <ul>
+      <li>budget: budget to produce the movie</li>
+      <li>genres: different type of genres e.g. comdey, action</li>
+      <li>homepage: link to the main web page about the movie</li>
+      <li>original language: the language it was shot in</li>
+      <li>original title: the original name of the movie</li>
+      <li>overview: description of the movie</li>
+      <li>popularity: number of page views on imdb</li>
+      <li>release date: date of release</li>
+      <li>revenue: revenue earned worldwide</li>
+      <li>runtime: movie length in minutes</li>
+      <li>spoken_language: </li>
+      <li>tagline: short description</li>
+      <li>title: the final title</li>
+      <li>vote_average: mean of the votes submitted, out of 10</li>
+      <li>vote_count: number of votes submitted</li>
+    </ul>
+  </p>
+
+
+  <table style="width:100%">
+  <tr>
+    <td>
+      <span id="vis1span"></span>
+      <select id="vis1select"></select>
+      <p class=instruct>(One can select from the drop down menu, hover over points, and zoom in)</p>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <svg id="vis1svg" width="800" height="800"></svg>
+    </td>
+  <tr>
+    <td>
+      <span id="vis2span"></span>
+      <select id="vis2select"></select>
+      <p class=instruct>(One can select from the drop down menu and hover over points)</p>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <svg id="vis2svg" width="1200" height="3000"></svg>
+    </td>
+  </tr>
+  </tr>
+
+  </table>
+
+</body>
+
+<!--
 <svg width="1600" height="1000"></svg>
-<script src="https://d3js.org/d3.v4.min.js"></script>
+-->
 <script>
 
-var svg = d3.select("svg"),
+const parseTime = d3.timeParse("%B %d, %Y"); //returning date object
+
+var allTitles = []
+
+//select the svg
+var svg = d3.select("#vis1svg"),
     width = +svg.attr("width"),
     height = +svg.attr("height");
 
-var color = d3.scaleOrdinal(d3.schemeCategory20);
+//call the zoom function on the svg
+svg.call(d3.zoom()
+    .scaleExtent([0.25,8])
+    .on("zoom", zoom));
 
-var simulation = d3.forceSimulation()
-    .force("link", d3.forceLink().id(function(d) { return d.id; }))
-    .force("charge", d3.forceManyBody())
-    .force("center", d3.forceCenter(width / 2, height / 2));
+d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
+    d.release_date = parseTime(d.release_date);
+    d.vote_average = +d.vote_average;
+    d.budget = +d.budget;
+    d.popularity = +d.popularity;
+    d.revenue = +d.revenue;
+    d.runtime = +d.runtime;
+    d.vote_count = +d.vote_count;
+    return d;
+  }, function(error, data) {
+    if (error) throw error;
 
-d3.json("hello.json", function(error, graph) {
-  if (error) throw error;
+  //get an array of all the movie title for the drop down
+  allTitles = getTitles(data);
+  //sort the movie titles
+  allTitles=allTitles.sort(function(a, b){
+    if(a.text < b.text) return -1;
+    if(a.text > b.text) return 1;
+    return 0;
+  })
 
-  var link = svg.append("g")
+  //build a span and dropdown menu
+  var span = d3.select('#vis1span')
+    .text('Select Movie variable: ');
+  var yInput = d3.select('#vis1select')
+      .on('change', yChange)
+     .selectAll('option')
+       .data(allTitles)
+       .enter()
+     .append('option')
+       .attr('value', function (d) { return d.text })
+       .text(function (d) { return d.text ;});
+
+
+
+  //colorscale for coloring nodes
+  var color = d3.scaleOrdinal(d3.schemeCategory20);
+
+  var selectedMovie = "300"
+  var numSimGenNodes = 3
+  var numSimGenLinks = 3
+
+  //get all the movies that have at least 2 genres in common with selected movie
+  var genreCommonData = getGenreCommonMovies(selectedMovie, data, numSimGenNodes);
+
+  //create all the nodes
+  var allNodes = createNodes(genreCommonData);
+
+  //create all the links
+  var allLinks = createLinks(genreCommonData, numSimGenLinks);
+  
+  console.log(allNodes);
+  console.log(allLinks);
+
+  //create all the links
+  //{"source": "A", "target": "B", "value": 1}
+  function createLinks (data, numGenres) {
+    linksArr = []
+    for (var i = 0; i < data.length; i++) {
+      sourceArr = getGenresStrArr(data[i].genres)
+      for (var j = i; j < data.length; j++) {
+        if (j != i) {
+          targetArr = getGenresStrArr(data[j].genres);
+          count = 0;
+          for (var k = 0; k < targetArr.length; k++) {
+            if(sourceArr.includes(targetArr[k])) {
+              count = count + 1;
+            }
+          }
+          if (count > numGenres) {
+            var a = {"source": data[i].title, "target": data[j].title, "value": Math.pow(count,3)};
+            linksArr.push(a)
+          }
+        }
+      }      
+    }
+    return linksArr;
+  }
+
+  //create all the nodes
+  function createNodes (data) {
+    nodesArr = []
+    for (var i = 0; i < data.length; i++) {
+      var n = {"id": null, "group": null};
+      n.id = data[i].title;
+      n.group = 1;
+      nodesArr.push(n);
+    }
+    return nodesArr;
+  }
+
+  //get all movies that share atleast numGenres in common
+  function getGenreCommonMovies(movieStr, allData, numGenres) {
+    //get all the genres of the specified movie as JSON string
+    genresJSONstr = allData.find(x => x.title === movieStr).genres;
+    //conver genre JSON string to array of objects
+    var genresArr = getGenresStrArr(genresJSONstr);
+
+    genreCommonMovies = []
+    for (var i = 0; i < allData.length; i++) {
+      if (allData[i].title !== movieStr) {
+        currentMovieGenres = getGenresStrArr(allData[i].genres);
+        count=0;
+        for (var j = 0; j < genresArr.length; j++) {
+          if (currentMovieGenres.includes(genresArr[j])) {
+            count = count + 1;
+          }
+        }
+        if (count >= numGenres) {
+          allData[i].genresCommon = count;
+          genreCommonMovies.push(allData[i]);
+        } else {
+          allData[i].genresCommon = 0;
+        }
+
+      }
+    }
+    return genreCommonMovies;
+  }
+
+  //transform string JSON object to javascript array of strings
+  function getGenresStrArr(objArrStr) {
+    objArr = JSON.parse(objArrStr);
+    genresArr=[]
+    for (var i = 0; i < objArr.length; i++) {
+      genresArr.push(objArr[i].name);
+    }
+    return genresArr
+  }
+
+  var graph = {"nodes": allNodes, "links": allLinks}
+  console.log(graph)
+
+  var simulation = d3.forceSimulation()
+      .force("link", d3.forceLink().id(function(d) { return d.id; }))
+      .force("charge", d3.forceManyBody())
+      .force("center", d3.forceCenter(width / 2, height / 2));
+
+  createForceGraph(graph)
+
+  function createForceGraph(graph) {
+
+    svg.selectAll("*").remove();
+
+    //draw everything on the g so we can zoom into the svg
+    g = svg.append("g");
+
+    var link = g.append("g")
       .attr("class", "links")
     .selectAll("line")
     .data(graph.links)
     .enter().append("line")
       .attr("stroke-width", function(d) { return Math.sqrt(d.value); });
 
-  var node = svg.append("g")
-      .attr("class", "nodes")
-    .selectAll("circle")
-    .data(graph.nodes)
-    .enter().append("circle")
-      .attr("r", 5)
-      .attr("fill", function(d) { return color(d.group); })
-      .call(d3.drag()
-          .on("start", dragstarted)
-          .on("drag", dragged)
-          .on("end", dragended));
+    var node = g.append("g")
+        .attr("class", "nodes")
+      .selectAll("circle")
+      .data(graph.nodes)
+      .enter().append("circle")
+        .attr("r", 5)
+        .attr("fill", function(d) { return color(d.group); })
+        .call(d3.drag()
+            .on("start", dragstarted)
+            .on("drag", dragged)
+            .on("end", dragended));
 
-  node.append("title")
-      .text(function(d) { return d.id; });
+    node.append("title")
+        .text(function(d) { return d.id; });
 
-  simulation
-      .nodes(graph.nodes)
-      .on("tick", ticked);
+    simulation
+        .nodes(graph.nodes)
+        .on("tick", ticked(link, node));
 
-  simulation.force("link")
-      .links(graph.links);
+    simulation.force("link")
+        .links(graph.links);
 
-  function ticked() {
+
+    function zoom() {
+      g.attr("transform", d3.event.transform);
+      // g.selectAll("circle")
+      // .attr("r", 4/d3.event.transform.k+"px");
+    }
+  } 
+
+
+  function ticked(link, node) {
     link
         .attr("x1", function(d) { return d.source.x; })
         .attr("y1", function(d) { return d.source.y; })
@@ -71,23 +330,56 @@ d3.json("hello.json", function(error, graph) {
         .attr("cx", function(d) { return d.x; })
         .attr("cy", function(d) { return d.y; });
   }
+
+  function dragstarted(d) {
+    if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+    d.fx = d.x;
+    d.fy = d.y;
+  }
+
+  function dragged(d) {
+    d.fx = d3.event.x;
+    d.fy = d3.event.y;
+  }
+
+  function dragended(d) {
+    if (!d3.event.active) simulation.alphaTarget(0);
+    d.fx = null;
+    d.fy = null;
+  }
+
+  
+  function yChange() {
+  var value = this.value;
+  console.log(value)
+
+  //get all the movies that have at least 2 genres in common with selected movie
+  genreCommonData = getGenreCommonMovies(value, data, numSimGenNodes);
+  
+  //create all the nodes
+  allNodes = createNodes(genreCommonData);
+
+  //create all the links
+  allLinks = createLinks(genreCommonData, numSimGenLinks);
+  
+
+  graph = {"nodes": allNodes, "links": allLinks}
+  
+  createForceGraph(graph)
+
+  }
+
 });
 
-function dragstarted(d) {
-  if (!d3.event.active) simulation.alphaTarget(0.3).restart();
-  d.fx = d.x;
-  d.fy = d.y;
-}
 
-function dragged(d) {
-  d.fx = d3.event.x;
-  d.fy = d3.event.y;
-}
 
-function dragended(d) {
-  if (!d3.event.active) simulation.alphaTarget(0);
-  d.fx = null;
-  d.fy = null;
+//function to get all the titles for the drop down menu from data
+function getTitles (data) {
+  var arrTitles = []
+  for (var i in data) {
+    arrTitles.push({"text": data[i].title})
+  }
+  return arrTitles
 }
 
 </script>
