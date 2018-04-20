@@ -45,6 +45,10 @@
       font-family: Arial;
     }
 
+    .axis--x path {
+  display: none;
+}
+
   .links line {
     stroke: #999;
     stroke-opacity: 0.6;
@@ -95,7 +99,7 @@
   </tr>
   <tr>
     <td>
-      <svg id="vis1svg" width="800" height="800"></svg>
+      <svg id="vis1svg" width="600" height="600"></svg>
     </td>
   <tr>
     <td>
@@ -106,7 +110,7 @@
   </tr>
   <tr>
     <td>
-      <svg id="vis2svg" width="1200" height="3000"></svg>
+      <svg id="vis2svg" width="600" height="600"></svg>
     </td>
   </tr>
   </tr>
@@ -169,7 +173,7 @@ d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
   //colorscale for coloring nodes
   var color = d3.scaleOrdinal(d3.schemeCategory20);
 
-  var selectedMovie = "300"
+  var selectedMovie = "(500) Days of Summer"
   var numSimGenNodes = 3
   var numSimGenLinks = 3
 
@@ -277,16 +281,16 @@ d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
     g = svg.append("g");
 
     //get all the movies that have at least 2 genres in common with selected movie
-  genreCommonData = getGenreCommonMovies(value, data, numSimGenNodes);
+    genreCommonData = getGenreCommonMovies(value, data, numSimGenNodes);
   
-  //create all the nodes
-  allNodes = createNodes(genreCommonData);
+    //create all the nodes
+    allNodes = createNodes(genreCommonData);
 
-  //create all the links
-  allLinks = createLinks(genreCommonData, numSimGenLinks);
+    //create all the links
+    allLinks = createLinks(genreCommonData, numSimGenLinks);
   
 
-  graph = {"nodes": allNodes, "links": allLinks}
+    graph = {"nodes": allNodes, "links": allLinks}
 
     simulation = d3.forceSimulation()
       .force("link", d3.forceLink().id(function(d) { return d.id; }))
@@ -332,6 +336,61 @@ d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
       // g.selectAll("circle")
       // .attr("r", 4/d3.event.transform.k+"px");
     }
+
+    bars = createBarChart(genreCommonData);
+
+
+    //co-selection - select node in graph to color bar chart
+    node.on("click", function(d) {
+      d3.selectAll("circle")
+        .attr("fill", function(d) { return color(d.group); })
+
+      d3.select(this)
+        .attr("fill", "red");
+
+      movie = d3.select(this).select("title").text();
+
+      d3.selectAll(".bar")
+        .attr("fill", "blue");
+
+      console.log("Here")
+      d3.selectAll(".bar").each(function(d) {
+        if (d3.select(this).text() === movie) {
+          d3.select(this)
+            .attr("fill", "red");
+        }
+      });
+
+    });
+
+    //co-selection - select bar in graph to color node
+
+    bars = d3.selectAll(".bar")
+
+    bars.on("click", function(d) {
+      d3.selectAll(".bar")
+        .attr("fill", "blue")
+
+      d3.select(this)
+        .attr("fill", "red");
+
+      movie = d3.select(this).select("title").text();
+      console.log(movie)
+
+      d3.selectAll("circle")
+        .attr("fill", function(d) { return color(d.group); })
+
+      d3.selectAll("circle").each(function(d) {
+        if (d3.select(this).text() === movie) {
+          d3.select(this)
+            .attr("fill", "red");
+        }
+      });
+
+    }); 
+
+
+
   } 
 
 
@@ -366,8 +425,62 @@ d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
 
   
   function yChange() {
-  var value = this.value;
-  createForceGraph(graph, value)
+    var value = this.value;
+    createForceGraph(graph, value)
+
+  }
+
+  function createBarChart(dataCommon){ 
+    
+    var svg2 = d3.select("#vis2svg");
+    var margin = {top: 20, right: 20, bottom: 250, left: 40};
+    var width2 = +svg2.attr("width") - margin.left - margin.right;
+    var height2 = +svg2.attr("height") - margin.top - margin.bottom;
+
+    svg2.selectAll("*").remove();
+
+    var x = d3.scaleBand().rangeRound([0, width2]).padding(0.1);
+    var y = d3.scaleLinear().rangeRound([height2, 0]);
+
+    x.domain(dataCommon.map(function(d) { return d.title; }));
+    y.domain([0, 10])
+
+    var g2 = svg2.append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    g2.append("g")
+      .attr("class", "axis axis--x")
+      .attr("transform", "translate(0," + (height2) + ")")
+      .call(d3.axisBottom(x))
+    .selectAll("text")
+      .attr("y", -5)
+      .attr("x", -20)
+      //.attr("dy", ".35em")
+      .attr("transform", "rotate(-90)")
+      .attr("text-anchor", "end");
+
+    g2.append("g")
+        .attr("class", "axis axis--y")
+        .call(d3.axisLeft(y))
+      .append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("y", 40)
+        .attr("dy", "0.71em")
+        .attr("text-anchor", "end")
+        .text("Frequency");
+
+    bars=g2.selectAll(".bar")
+      .data(dataCommon)
+      .enter().append("rect")
+        .attr("fill", "blue")
+        .attr("class", "bar")
+        .attr("x", function(d) { return x(d.title); })
+        .attr("y", function(d) { return y(d.vote_average); })
+        .attr("width", x.bandwidth())
+        .attr("height", function(d) { return height2 - y(d.vote_average); })
+        .append("title")
+        .text(function(d) { return d.title; });
+
   }
 
 });
