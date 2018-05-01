@@ -88,6 +88,7 @@
       <li>vote_count: number of votes submitted</li>
     </ul>
   </p>
+  <p>The dataset can be used to find associations between budget, popularity for example and a whole host of other variables. One can also do NLP, or languge visualizationsn by analyzing the title, key words, and tagline.</p>
 
   <h3>Modified above data</h3>
   <p> The data was modified to filter out older and very unpopular, or poorly rated movies.
@@ -105,10 +106,12 @@
   <p>
     The user should be aware:
     <ul>
-      <li>The blue node is a selected movie</li>
       <li>The user can select his her favorite movie from the drop down</li>
-      <li>There exists "link" between graph and bar chart, highlighting the exisitng selection in black</li>
-      <li>Can hover over nodes and barchart to reveal more info</li>
+      <li>The blue node is a selected movie</li>
+      <li>There exists "link" between the force-graph and word cloud, selecting a node or movie, will light up the associated words in black</li>
+      <li>There exists "link" between the word-cloud and force-graph, selecting a word will light up the associated nodes or movies</li>
+      <li>Can hover over nodes to reveal the movie name</li>
+      <li>Can hover over word to reveal frequency of word</li>
       <li>The user can zoom in and out of the force graph.</li>
     </ul>
   </p>
@@ -151,7 +154,7 @@ var svg = d3.select("#vis1svg"),
     height = +svg.attr("height");
 
 
-
+//open movies
 d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
     d.release_date = (d.release_date);
     d.vote_average = +d.vote_average;
@@ -263,7 +266,7 @@ d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
     simulation.force("link")
         .links(graph.links);
 
-      //call the zoom function on the svg
+    //call the zoom function on the svg
     svg.call(d3.zoom()
       .scaleExtent([0.25,8])
       .on("zoom", zoom));
@@ -273,9 +276,6 @@ d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
       // g.selectAll("circle")
       // .attr("r", 4/d3.event.transform.k+"px");
     }
-
-    //create the bar chart
-    //createBarChart(genreCommonData);
 
     dataCommon = genreCommonData
 
@@ -322,7 +322,7 @@ d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
     var topNwords = out.slice(0,N);
     var alpha_arr=["a", "b", "c", "d", "e", "f", "g", "h"]
 
-    //create the data, which is an array
+    //create the data for wordcloud, which is an array
     data1 = []
     j = 0
     for (var i = 0; i < topNwords.length; i++) {
@@ -334,7 +334,7 @@ d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
       data1.push(obj)
     }
 
-
+    //create the wordcloud
     var categories = d3.keys(d3.nest().key(function(d) { return d.category; }).map(data1));
     var color = d3.scaleOrdinal().range(["#66c2a5","#fc8d62","#8da0cb","#e78ac3","#a6d854"]);
     var fontSize = d3.scalePow().exponent(5).domain([0,1]).range([10,80]);
@@ -355,6 +355,44 @@ d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
         .attr('class','wordcloud')
         .attr("transform", "translate(" + width/2 + "," + height/2 + ")");
 
+    //co-selection - select node in graph to color bar chart
+    node.on("click", function(d) {
+      var colororg = d3.scaleOrdinal().range(["blue", "#009933"]);
+      d3.selectAll("circle")
+        .attr("fill", function(d) { return colororg(d.group); })
+        .attr("r", 5)
+
+      d3.select(this)
+        .attr("fill", "black")
+        .attr("r", 20);
+
+      movie = d3.select(this).select("title").text();
+
+      movieSelect = genreCommonData.find(x => x.title === movie);
+
+      var allMovieText = ""
+      allMovieText += movieSelect.original_title + " ";
+      allMovieText += movieSelect.overview + " ";
+      allMovieText += movieSelect.tagline + " ";
+      allMovieText += getGenresStrArr(movieSelect.keywords) + " ";
+
+      allMovieText = getUncommon(allMovieText)
+
+      var allMovieTextArr = allMovieText.split(' ');
+
+      wordcloud.selectAll("text").data(data1).style("fill", function(d) { 
+              var paringObject = data1.filter(function(obj) { return obj.password === d.text});
+              return color(paringObject[0].category); 
+          })
+
+      wordcloud.selectAll("text").each(function(d) {
+        if (allMovieTextArr.indexOf(d3.select(this).text()) !== -1) {
+          d3.select(this).style("fill", "black")
+        }
+      })
+    });
+
+    //draw wordcloud
     function draw(words) {
 
       wordcloud.selectAll("text")
@@ -374,11 +412,11 @@ d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
               div.transition()
                 .duration(200)
                 .style("opacity", 0.9)
-                .style('width', 200 + 'px')
-                .style('height', 60 + 'px')
+                .style('width', 100 + 'px')
+                .style('height', 30 + 'px')
                 .style('background-color', 'white')
 
-              div.html(d.text + "<br/>")
+              div.html("Frequency: " + d.count + "<br/>")
                 .style("left", d => {
                   return (d3.event.pageX+28) + "px"
                 })
@@ -388,61 +426,35 @@ d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
               div.transition()
               .duration(500)
               .style("opacity", 0);
+          })
+          .on("click", function(d) {
+              d3.selectAll("circle")
+              .attr("fill", function(d) { return color(d.group); })
+              .attr("r", 5)
+
+            cloudWord = d3.select(this).text()
+            //console.log(cloudWord)
+            for (var i = 0; i < dataCommon.length; i++) {
+              var allMovieText = ""
+              allMovieText += dataCommon[i].original_title + " ";
+              allMovieText += dataCommon[i].overview + " ";
+              allMovieText += dataCommon[i].tagline + " ";
+              allMovieText += getGenresStrArr(dataCommon[i].keywords) + " ";
+              allMovieText = getUncommon(allMovieText)
+              allMovieTextArr = allMovieText.split(' ')
+              //console.log(allMovieTextArr)
+              
+              if (allMovieTextArr.indexOf(cloudWord) !== -1) {
+                d3.selectAll("circle").each(function(d) {
+                  if (d3.select(this).text() == dataCommon[i].original_title) {
+                    d3.select(this).attr("fill", "black").attr("r", 20);
+
+                  }
+                });
+              }
+            }
           });
     };
-  
-
-
-    //co-selection - select node in graph to color bar chart
-    node.on("click", function(d) {
-      d3.selectAll("circle")
-        .attr("fill", function(d) { return color(d.group); })
-        .attr("r", 5)
-
-      d3.select(this)
-        .attr("fill", "black")
-        .attr("r", 20);
-
-      movie = d3.select(this).select("title").text();
-
-       d3.selectAll(".word")
-         .style("fill", color(2));
-
-      // d3.selectAll(".bar").each(function(d) {
-      //   if (d3.select(this).text().split("\n")[0] === movie) {
-      //     d3.select(this)
-      //       .attr("fill", "black");
-      //   }
-      // });
-
-    });
-
-    // //co-selection - select bar in graph to color node
-    // bars = d3.selectAll(".bar")
-    // bars.on("click", function(d) {
-    //   d3.selectAll(".bar")
-    //     .attr("fill", color(2))
-
-    //   d3.select(this)
-    //     .attr("fill", "black");
-
-    //   //get the text, split by new line, get the first element to get movie
-    //   movie = d3.select(this).select("title").text().split("\n")[0];
-
-    //   d3.selectAll("circle")
-    //     .attr("fill", function(d) { return color(d.group); })
-    //     .attr("r", 5);
-
-    //   d3.selectAll("circle").each(function(d) {
-    //     if (d3.select(this).text() === movie) {
-    //       d3.select(this)
-    //         .attr("fill", "black")
-    //         .attr("r", 20);
-
-    //     }
-    //   });
-    // }); 
-
 
   } 
 
@@ -492,7 +504,6 @@ d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
     var genreCommonMovies = []
     //get selected movie
     movieSelect = allData.find(x => x.title === movieStr);
-    console.log(movieSelect)
     //add it to data arr
     genreCommonMovies.push(movieSelect);
     //get all the genres of the specified movie as JSON string
