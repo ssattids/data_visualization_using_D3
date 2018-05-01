@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <script src="https://d3js.org/d3.v4.min.js"></script>
+  <script src="d3.layout.cloud.js"></script>
 
   <style>
     span {
@@ -122,11 +123,11 @@
   </tr>
   <tr>
     <td>
-      <svg id="vis1svg" width="600" height="600"></svg>
+      <svg id="vis1svg" width="600" height="300"></svg>
     </td>
   <tr>
     <td>
-      <svg id="vis2svg" width="1800" height="600"></svg>
+      <svg id="vis2svg" width="600" height="300"></svg>
     </td>
   </tr>
   </tr>
@@ -185,11 +186,6 @@ d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
        .text(function (d) { return d.text ;});
 
 
-
-  //colorscale for coloring nodes
-  //var color = d3.scaleOrdinal(d3.schemeCategory10);
-  var color = d3.scaleOrdinal().range(["blue", "#009933"]);
-
   var selectedMovie = "(500) Days of Summer"
   var numSimGenNodes = 2
   var numSimGenLinks = 2
@@ -212,6 +208,9 @@ d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
 
   //create the force graph and bar chart
   function createGraphs(graph, value) {
+    //colorscale for coloring nodes
+    //var color = d3.scaleOrdinal(d3.schemeCategory10);
+    var color = d3.scaleOrdinal().range(["blue", "#009933"]);
 
     svg.selectAll("*").remove();
 
@@ -276,7 +275,122 @@ d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
     }
 
     //create the bar chart
-    createBarChart(genreCommonData);
+    //createBarChart(genreCommonData);
+
+    dataCommon = genreCommonData
+
+    var svg2 = d3.select("#vis2svg");
+    svg2.selectAll("*").remove();
+    var margin = {top: 20, right: 20, bottom: 40, left: 20};
+    var width2 = +svg2.attr("width") - margin.left - margin.right;
+    var height2 = +svg2.attr("height") - margin.top - margin.bottom;
+
+    //create a div that will be used for the tooltip
+    var div = d3.select("body").append("div")
+    .attr("class", "tooltip")
+    .style("opacity", 1);
+
+    //preprocess the data so it is one long sentence
+    allText = ""
+    for (var i = 0; i < dataCommon.length; i++) {
+      allText += dataCommon[i].original_title + " ";
+      allText += dataCommon[i].overview + " ";
+      allText += dataCommon[i].tagline + " ";
+      allText += getGenresStrArr(dataCommon[i].keywords) + " ";
+    }
+
+    allText = getUncommon(allText)
+
+    //get counts of all the words, returns as large object
+    var counts = allText.replace(/[^\w\s]/g, "").split(/\s+/).reduce(function(map, word){
+      map[word] = (map[word]||0)+1;
+      return map;
+    }, Object.create(null));
+
+    //convert large object into array of array
+    var out = Object.keys(counts).map(function(data){
+      return [data,counts[data]];
+    });
+
+    //sort array of arrays by second value, or text occurences
+    out.sort(function(a,b){
+      return b[1] - a[1];
+    });
+
+    var colorCategories = 5 //to increase this, define more colors in color scale
+    var N = 60
+    var topNwords = out.slice(0,N);
+    var alpha_arr=["a", "b", "c", "d", "e", "f", "g", "h"]
+
+    //create the data, which is an array
+    data1 = []
+    j = 0
+    for (var i = 0; i < topNwords.length; i++) {
+      if ( (i/(N/colorCategories)) % 1 == 0 ){ // if whole number
+        cat = alpha_arr[j]
+        j += 1;
+      }
+      obj = {"password": topNwords[i][0], "count": topNwords[i][1], "category": cat};
+      data1.push(obj)
+    }
+
+
+    var categories = d3.keys(d3.nest().key(function(d) { return d.category; }).map(data1));
+    var color = d3.scaleOrdinal().range(["#66c2a5","#fc8d62","#8da0cb","#e78ac3","#a6d854"]);
+    var fontSize = d3.scalePow().exponent(5).domain([0,1]).range([10,80]);
+
+    var layout = d3.layout.cloud()
+        .timeInterval(10)
+        .size([width, height])
+        .words(data1)
+        .rotate(function(d) { return 0; })
+        .font('monospace')
+        .fontSize(function(d,i) { return fontSize((data1.length-i) / data1.length ); })
+        .text(function(d) { return d.password; })
+        .spiral("archimedean")
+        .on("end", draw)
+        .start();
+
+    var wordcloud = svg2.append("g")
+        .attr('class','wordcloud')
+        .attr("transform", "translate(" + width/2 + "," + height/2 + ")");
+
+    function draw(words) {
+
+      wordcloud.selectAll("text")
+          .data(words)
+        .enter().append("text")
+          .attr('class','word')
+          .style("font-size", function(d) { return d.size + "px"; })
+          .style("font-family", function(d) { return d.font; })
+          .style("fill", function(d) { 
+              var paringObject = data1.filter(function(obj) { return obj.password === d.text});
+              return color(paringObject[0].category); 
+          })
+          .attr("text-anchor", "middle")
+          .attr("transform", function(d) { return "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")"; })
+          .text(function(d) { return d.text; })
+          .on("mouseover", function(d) {
+              div.transition()
+                .duration(200)
+                .style("opacity", 0.9)
+                .style('width', 200 + 'px')
+                .style('height', 60 + 'px')
+                .style('background-color', 'white')
+
+              div.html(d.text + "<br/>")
+                .style("left", d => {
+                  return (d3.event.pageX+28) + "px"
+                })
+                .style("top", (d3.event.pageY -28) + "px");
+            })
+          .on("mouseout", function(d) {
+              div.transition()
+              .duration(500)
+              .style("opacity", 0);
+          });
+    };
+  
 
 
     //co-selection - select node in graph to color bar chart
@@ -291,45 +405,45 @@ d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
 
       movie = d3.select(this).select("title").text();
 
-      d3.selectAll(".bar")
-        .attr("fill", color(2));
+       d3.selectAll(".word")
+         .style("fill", color(2));
 
-      d3.selectAll(".bar").each(function(d) {
-        if (d3.select(this).text() === movie) {
-          d3.select(this)
-            .attr("fill", "black");
-        }
-      });
+      // d3.selectAll(".bar").each(function(d) {
+      //   if (d3.select(this).text().split("\n")[0] === movie) {
+      //     d3.select(this)
+      //       .attr("fill", "black");
+      //   }
+      // });
 
     });
 
-    //co-selection - select bar in graph to color node
-    bars = d3.selectAll(".bar")
+    // //co-selection - select bar in graph to color node
+    // bars = d3.selectAll(".bar")
+    // bars.on("click", function(d) {
+    //   d3.selectAll(".bar")
+    //     .attr("fill", color(2))
 
-    bars.on("click", function(d) {
-      d3.selectAll(".bar")
-        .attr("fill", color(2))
+    //   d3.select(this)
+    //     .attr("fill", "black");
 
-      d3.select(this)
-        .attr("fill", "black");
+    //   //get the text, split by new line, get the first element to get movie
+    //   movie = d3.select(this).select("title").text().split("\n")[0];
 
-      //get the text, split by new line, get the first element to get movie
-      movie = d3.select(this).select("title").text().split("\n")[0];
+    //   d3.selectAll("circle")
+    //     .attr("fill", function(d) { return color(d.group); })
+    //     .attr("r", 5);
 
-      d3.selectAll("circle")
-        .attr("fill", function(d) { return color(d.group); })
-        .attr("r", 5);
+    //   d3.selectAll("circle").each(function(d) {
+    //     if (d3.select(this).text() === movie) {
+    //       d3.select(this)
+    //         .attr("fill", "black")
+    //         .attr("r", 20);
 
-      d3.selectAll("circle").each(function(d) {
-        if (d3.select(this).text() === movie) {
-          d3.select(this)
-            .attr("fill", "black")
-            .attr("r", 20);
+    //     }
+    //   });
+    // }); 
 
-        }
-      });
 
-    }); 
   } 
 
   //create all the links
@@ -376,9 +490,9 @@ d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
   //get all movies that share atleast numGenres in common
   function getGenreCommonMovies(movieStr, allData, numGenres) {
     var genreCommonMovies = []
-
     //get selected movie
     movieSelect = allData.find(x => x.title === movieStr);
+    console.log(movieSelect)
     //add it to data arr
     genreCommonMovies.push(movieSelect);
     //get all the genres of the specified movie as JSON string
@@ -453,71 +567,123 @@ d3.csv("tmdb_5000_movies_parsed.csv" ,function(d) {
   }
 
   //create the bar chart
+
+  
   function createBarChart(dataCommon){ 
     
     var svg2 = d3.select("#vis2svg");
-    var margin = {top: 20, right: 20, bottom: 250, left: 60};
+    svg2.selectAll("*").remove();
+    var margin = {top: 20, right: 20, bottom: 40, left: 20};
     var width2 = +svg2.attr("width") - margin.left - margin.right;
     var height2 = +svg2.attr("height") - margin.top - margin.bottom;
 
-    svg2.selectAll("*").remove();
+    //create a div that will be used for the tooltip
+		var div = d3.select("body").append("div")
+  	.attr("class", "tooltip")
+  	.style("opacity", 1);
 
-    var x = d3.scaleBand().rangeRound([0, width2]).padding(0.1);
-    var y = d3.scaleLinear().rangeRound([height2, 0]);
+  	//preprocess the data so it is one long sentence
+  	allText = ""
+  	for (var i = 0; i < dataCommon.length; i++) {
+  		allText += dataCommon[i].original_title + " ";
+  		allText += dataCommon[i].overview + " ";
+  		allText += dataCommon[i].tagline + " ";
+  		allText += getGenresStrArr(dataCommon[i].keywords) + " ";
+  	}
 
-    x.domain(dataCommon.map(function(d) { return d.title; }));
-    y.domain([0, 10])
+  	allText = getUncommon(allText)
 
-    var g2 = svg2.append("g")
-        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+  	//get counts of all the words, returns as large object
+  	var counts = allText.replace(/[^\w\s]/g, "").split(/\s+/).reduce(function(map, word){
+    	map[word] = (map[word]||0)+1;
+    	return map;
+		}, Object.create(null));
 
-    g2.append("g")
-      .attr("class", "axis axis--x")
-      .attr("transform", "translate(0," + (height2) + ")")
-      .call(d3.axisBottom(x))
-    .selectAll("text")
-      .attr("y", -5)
-      .attr("x", -20)
-      //.attr("dy", ".35em")
-      .attr("transform", "rotate(-90)")
-      .attr("text-anchor", "end");
+		//convert large object into array of array
+		var out = Object.keys(counts).map(function(data){
+    	return [data,counts[data]];
+    });
 
-    yAxisG = g2.append("g")
-        .attr("class", "axis axis--y")
-        .call(d3.axisLeft(y))
+    //sort array of arrays by second value, or text occurences
+    out.sort(function(a,b){
+    	return b[1] - a[1];
+		});
 
-    //set the y-axis label by appending to y-axis group
-    yAxisG.append('text')
-      .attr('class', 'axis-label')
-      .attr('x', (-innerHeight / 2) + 335 )
-      .attr('y', -40)
-      .attr('transform', 'rotate(-90)') //rotate by -90
-      .style("fill", "black")
-      .text("IMDB rating");
+    var colorCategories = 5 //to increase this, define more colors in color scale
+    var N = 60
+		var topNwords = out.slice(0,N);
+		var alpha_arr=["a", "b", "c", "d", "e", "f", "g", "h"]
 
-    selectedMovie = dataCommon[0].title
-    bars=g2.selectAll(".bar")
-      .data(dataCommon)
-      .enter().append("rect")
-        .attr("fill", function(d) { 
-          if (selectedMovie == d.title) {
-            return color(1)
-          } else {
-            return color(2)
-          } 
-        })
-        .attr("class", "bar")
-        .attr("x", function(d) { return x(d.title); })
-        .attr("y", function(d) { return y(d.vote_average); })
-        .attr("width", x.bandwidth())
-        .attr("height", function(d) { return height2 - y(d.vote_average); })
-        .append("title")
-        .text(function(d) { 
-          return d.title+"\n" + 
-          "Release date: " + d.release_date+"\n" + 
-          "Budget: $" + Math.round(d.budget/1000000 * 10)/10 + "mil\n" +
-          "Runtime: " + d.runtime+"mins\n"; });
+		//create the data, which is an array
+		data1 = []
+		j = 0
+		for (var i = 0; i < topNwords.length; i++) {
+			if ( (i/(N/colorCategories)) % 1 == 0 ){ // if whole number
+				cat = alpha_arr[j]
+				j += 1;
+			}
+			obj = {"password": topNwords[i][0], "count": topNwords[i][1], "category": cat};
+			data1.push(obj)
+		}
+
+
+		var categories = d3.keys(d3.nest().key(function(d) { return d.category; }).map(data1));
+ 		var colorWord = d3.scaleOrdinal().range(["#66c2a5","#fc8d62","#8da0cb","#e78ac3","#a6d854"]);
+  	var fontSize = d3.scalePow().exponent(5).domain([0,1]).range([10,80]);
+
+	  var layout = d3.layout.cloud()
+	      .timeInterval(10)
+	      .size([width, height])
+	      .words(data1)
+	      .rotate(function(d) { return 0; })
+	      .font('monospace')
+	      .fontSize(function(d,i) { return fontSize((data1.length-i) / data1.length ); })
+	      .text(function(d) { return d.password; })
+	      .spiral("archimedean")
+	      .on("end", draw)
+	      .start();
+
+	  var wordcloud = svg2.append("g")
+	      .attr('class','wordcloud')
+	      .attr("transform", "translate(" + width/2 + "," + height/2 + ")");
+
+		function draw(words) {
+
+	    wordcloud.selectAll("text")
+	        .data(words)
+	      .enter().append("text")
+	        .attr('class','word')
+	        .style("font-size", function(d) { return d.size + "px"; })
+	        .style("font-family", function(d) { return d.font; })
+	        .style("fill", function(d) { 
+	            var paringObject = data1.filter(function(obj) { return obj.password === d.text});
+	            return colorWord(paringObject[0].category); 
+	        })
+	        .attr("text-anchor", "middle")
+	        .attr("transform", function(d) { return "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")"; })
+	        .text(function(d) { return d.text; })
+	        .on("mouseover", function(d) {
+	            div.transition()
+	              .duration(200)
+	              .style("opacity", 0.9)
+	              .style('width', 200 + 'px')
+	              .style('height', 60 + 'px')
+	              .style('background-color', 'white')
+
+	            div.html(d.text + "<br/>")
+	              .style("left", d => {
+	                return (d3.event.pageX+28) + "px"
+	              })
+	              .style("top", (d3.event.pageY -28) + "px");
+	          })
+	        .on("mouseout", function(d) {
+	            div.transition()
+	            .duration(500)
+	            .style("opacity", 0);
+	        });
+	  };
   }
+
 
 });
 
@@ -529,6 +695,30 @@ function getTitles (data) {
     arrTitles.push({"text": data[i].title})
   }
   return arrTitles
+}
+
+//remove all the common words
+function getUncommon(sentence) {
+	var common = "poop,i,me,my,myself,we,us,our,ours,ourselves,you,your,yours,yourself,yourselves,he,him,his,himself,she,her,hers,herself,it,its,itself,they,them,their,theirs,themselves,what,which,who,whom,whose,this,that,these,those,am,is,are,was,were,be,been,being,have,has,had,having,do,does,did,doing,will,would,should,can,could,ought,i'm,you're,he's,she's,it's,we're,they're,i've,you've,we've,they've,i'd,you'd,he'd,she'd,we'd,they'd,i'll,you'll,he'll,she'll,we'll,they'll,isn't,aren't,wasn't,weren't,hasn't,haven't,hadn't,doesn't,don't,didn't,won't,wouldn't,shan't,shouldn't,can't,cannot,couldn't,mustn't,let's,that's,who's,what's,here's,there's,when's,where's,why's,how's,a,an,the,and,but,if,or,because,as,until,while,of,at,by,for,with,about,against,between,into,through,during,before,after,above,below,to,from,up,upon,down,in,out,on,off,over,under,again,further,then,once,here,there,when,where,why,how,all,any,both,each,few,more,most,other,some,such,no,nor,not,only,own,same,so,than,too,very,say,says,said,shall,s";
+  var wordArr = sentence.match(/\w+/g),
+      commonObj = {},
+      uncommonArr = [],
+      word, i;
+  
+  common = common.split(',');
+  for ( i = 0; i < common.length; i++ ) {
+      commonObj[ common[i].trim() ] = true;
+  }
+  
+  var uncommonText = ""
+  for ( i = 0; i < wordArr.length; i++ ) {
+      word = wordArr[i].trim().toLowerCase();
+      if ( !commonObj[word] ) {
+          uncommonText += word + " ";
+      }
+  }
+  
+  return uncommonText;
 }
 
 </script>

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<!-- This lab is based on the example Radial Line Chart 
+  https://bl.ocks.org/tlfrd/fd6991b2d1947a3cb9e0bd20053899d6 -->
+<head>
+  <meta charset="utf-8">
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+  <script src="d3-scale-radial.js"></script>
+  <style>
+    span {
+      font-size: 14px;
+      font-family: monospace;
+    }
+    text {
+      font-size: 14px;
+      font-family: monospace;
+    }
+    table, th, td {
+      border: 1px solid black;
+    }
+    /*styled-select blue semi-square*/
+    select{
+      /*background: url(http://i62.tinypic.com/15xvbd5.png) no-repeat 96% 0;*/
+      height: 29px;
+      overflow: hidden;
+      width: 240px;
+      background-color: #000;
+      -webkit-border-radius: 5px;
+      -moz-border-radius: 5px;
+      border-radius: 5px;
+      color: white;
+      font-family: monospace;
+    }
+
+    p , h1, h2, h3, li{
+      font-family: Arial;
+    }
+
+    .instruct {
+      font-family: monospace; 
+      font-size: 12px;
+    }
+
+    div {
+      z-index: 1;
+      position: absolute;
+      font-family: Arial;
+    }
+  </style>
+</head>
+
+<body>
+  <h1><center>Movies visualized</center></h1>
+  <h2>By Salar Satti</h2>
+
+  <h3>Question 1: Data</h3>
+  <p>The dataset is from <a href="https://www.kaggle.com/rounakbanik/the-movies-dataset">kaggle</a>. Total rows are 2417 (Some rows were removed that had missing values)</p>
+  <p>
+    The dataset contains:
+    <ul>
+      <li>budget: budget to produce the movie</li>
+      <li>genres: different type of genres e.g. comdey, action</li>
+      <li>homepage: link to the main web page about the movie</li>
+      <li>original language: the language it was shot in</li>
+      <li>original title: the original name of the movie</li>
+      <li>overview: description of the movie</li>
+      <li>popularity: number of page views on imdb</li>
+      <li>release date: date of release</li>
+      <li>revenue: revenue earned worldwide</li>
+      <li>runtime: movie length in minutes</li>
+      <li>spoken_language: </li>
+      <li>tagline: short description</li>
+      <li>title: the final title</li>
+      <li>vote_average: mean of the votes submitted, out of 10</li>
+      <li>vote_count: number of votes submitted</li>
+    </ul>
+  </p>
+
+  <p>
+    We could use the data in multiple ways, some of the ways include:
+    <ul>
+      <li>Plot the data based on time</li>
+      <li>Plot popularity based on rating to investigate preferences in user and critics</li>
+      <li>Do NLP on taglines for the most popular movies and visualize wordclouds</li>
+    </ul>
+  </p>
+
+
+  <table style="width:100%">
+  <tr>
+    <td>
+      <span id="vis1span"></span>
+      <select id="vis1select"></select>
+      <p class=instruct>(One can select from the drop down menu, hover over points, and zoom in)</p>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <svg id="vis1svg" width="800" height="800"></svg>
+    </td>
+  <tr>
+    <td>
+      <span id="vis2span"></span>
+      <select id="vis2select"></select>
+      <p class=instruct>(One can select from the drop down menu and hover over points)</p>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <svg id="vis2svg" width="1200" height="3000"></svg>
+    </td>
+  </tr>
+  </tr>
+
+</table>
+  <script type='text/javascript' src='script1.js'></script>
+  <script type='text/javascript' src='script2.js'></script>
+</body>
